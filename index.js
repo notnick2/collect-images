@@ -1,28 +1,22 @@
 const express = require('express');
-const axios = require('axios');
+const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const cors = require('cors');
 
 const app = express();
 
-
-// Enable JSON parsing for incoming requests
-app.use(express.json());
-
-// Configure CORS
+// Allow requests from any origin
 app.use(cors());
 
-
-// GET endpoint to fetch images from a given URL
+// GET endpoint to fetch images from a provided URL
 app.get('/api/images', async (req, res) => {
   const { url } = req.query;
 
-  // Validate that the URL parameter is provided
   if (!url) {
     return res.status(400).json({ error: 'Missing URL parameter' });
   }
 
-  // Validate that the provided URL is in proper format
+  // Validate the URL format
   try {
     new URL(url);
   } catch (err) {
@@ -30,43 +24,48 @@ app.get('/api/images', async (req, res) => {
   }
 
   try {
-    // Fetch the HTML of the provided URL with a timeout (10 seconds)
-    const { data: html } = await axios.get(url, { timeout: 10000 });
-    
+    // Launch Puppeteer (with minimal options)
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Set a realistic User-Agent to help bypass basic bot protection
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
+
+    // Navigate to the provided URL and wait until the network is idle
+    await page.goto(url, { waitUntil: 'networkidle0' });
+    const html = await page.content();
+
+    // Close the browser to free resources
+    await browser.close();
+
     // Load the HTML into Cheerio for parsing
     const $ = cheerio.load(html);
     const images = [];
 
-    // Extract image URLs from all <img> tags
-    $('img').each((index, element) => {
+    // Extract the src attribute from each <img> tag and convert relative URLs to absolute
+    $('img').each((i, element) => {
       let src = $(element).attr('src');
       if (src) {
         try {
-          // Convert relative URLs to absolute URLs
           src = new URL(src, url).href;
           images.push(src);
         } catch (error) {
-          // If URL conversion fails, skip this src
-          console.error(`Error converting URL for src: ${src}`, error);
+          console.error(`Error processing src "${src}":`, error);
         }
       }
     });
 
-    // Respond with the collected image URLs
+    // Return the scraped image URLs as JSON
     res.json({ images });
   } catch (error) {
     console.error('Error fetching the URL:', error.message);
-    res.status(500).json({ error: 'An error occurred while fetching images.' });
+    res.status(500).json({ error: 'Error fetching images' });
   }
 });
 
-// Global error-handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Start the server on port 3000
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
 });
