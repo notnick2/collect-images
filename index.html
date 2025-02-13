@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Scraper Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    form {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-left: 10px;
+      font-size: 16px;
+      border: none;
+      background-color: #007BFF;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-gap: 15px;
+    }
+    .image-item {
+      border: 1px solid #ddd;
+      padding: 10px;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .image-item img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: auto;
+    }
+    #error {
+      color: red;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Scraper Viewer</h1>
+    <form id="urlForm">
+      <input type="text" id="urlInput" placeholder="Enter website URL" required>
+      <button type="submit">Fetch Images</button>
+    </form>
+    <div id="error"></div>
+    <div class="images-grid" id="imagesGrid"></div>
+  </div>
+
+  <script>
+    document.getElementById('urlForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const urlInput = document.getElementById('urlInput').value;
+      const errorDiv = document.getElementById('error');
+      const imagesGrid = document.getElementById('imagesGrid');
+
+      // Clear any previous error messages and images
+      errorDiv.textContent = '';
+      imagesGrid.innerHTML = '';
+
+      // Validate the URL format
+      try {
+        new URL(urlInput);
+      } catch (err) {
+        errorDiv.textContent = 'Please enter a valid URL.';
+        return;
+      }
+
+      // Show a loading message while fetching images
+      imagesGrid.innerHTML = '<p>Loading images...</p>';
+
+      try {
+        // Replace `/api/images` with the appropriate endpoint if needed.
+        const response = await fetch(`http://localhost:3000/api/images?url=${encodeURIComponent(urlInput)}`);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+
+        // Clear the loading message
+        imagesGrid.innerHTML = '';
+
+        if (data.images && data.images.length > 0) {
+          data.images.forEach(imgUrl => {
+            const div = document.createElement('div');
+            div.className = 'image-item';
+
+            const img = document.createElement('img');
+            img.src = imgUrl;
+            img.alt = 'Scraped image';
+
+            div.appendChild(img);
+            imagesGrid.appendChild(div);
+          });
+        } else {
+          imagesGrid.innerHTML = '<p>No images found.</p>';
+        }
+      } catch (error) {
+        console.error(error);
+        errorDiv.textContent = 'An error occurred while fetching images.';
+        imagesGrid.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>
