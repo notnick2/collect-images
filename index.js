@@ -8,7 +8,6 @@ const app = express();
 // Allow requests from any origin
 app.use(cors());
 
-// GET endpoint to fetch images from a provided URL
 app.get('/api/images', async (req, res) => {
   const { url } = req.query;
 
@@ -16,7 +15,7 @@ app.get('/api/images', async (req, res) => {
     return res.status(400).json({ error: 'Missing URL parameter' });
   }
 
-  // Validate the URL format
+  // Validate URL format
   try {
     new URL(url);
   } catch (err) {
@@ -24,27 +23,27 @@ app.get('/api/images', async (req, res) => {
   }
 
   try {
-    // Launch Puppeteer (with minimal options)
+    // Launch Puppeteer
     const browser = await puppeteer.launch({
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     const page = await browser.newPage();
 
-    // Set a realistic User-Agent to help bypass basic bot protection
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
+    // Set a realistic User-Agent
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+    );
 
-    // Navigate to the provided URL and wait until the network is idle
+    // Navigate to the URL and wait until network is idle
     await page.goto(url, { waitUntil: 'networkidle0' });
     const html = await page.content();
-
-    // Close the browser to free resources
     await browser.close();
 
-    // Load the HTML into Cheerio for parsing
+    // Load HTML into Cheerio for parsing
     const $ = cheerio.load(html);
     const images = [];
 
-    // Extract the src attribute from each <img> tag and convert relative URLs to absolute
+    // Extract all image URLs and convert relative paths to absolute URLs
     $('img').each((i, element) => {
       let src = $(element).attr('src');
       if (src) {
@@ -57,8 +56,8 @@ app.get('/api/images', async (req, res) => {
       }
     });
 
-    // Return the scraped image URLs as JSON
-    res.json({ images });
+    // Respond directly with the array of image URLs
+    res.json(images);
   } catch (error) {
     console.error('Error fetching the URL:', error.message);
     res.status(500).json({ error: 'Error fetching images' });
